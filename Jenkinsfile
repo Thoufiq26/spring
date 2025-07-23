@@ -65,6 +65,7 @@ pipeline {
     }
     post {
         always {
+            echo 'Pipeline execution completed.' // Added to satisfy syntax
             // bat 'taskkill /F /IM java.exe /T || exit 0' // Commented out to keep app running
         }
         success {
