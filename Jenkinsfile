@@ -72,7 +72,7 @@ pipeline {
     post {
         always {
             // Clean up running Java processes
-            bat 'taskkill /F /IM java.exe /T || exit 0'
+            // bat 'taskkill /F /IM java.exe /T || exit 0'
         }
         success {
             echo 'Pipeline completed successfully!'
