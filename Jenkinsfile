@@ -36,8 +36,8 @@ pipeline {
                         for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${QA_PORT}') do taskkill /F /PID %%i
                     ) || exit 0
                 """
-                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
-                bat 'ping 127.0.0.1 -n 15 > nul'
+                bat "java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
+                bat 'ping 127.0.0.1 -n 60 > nul' // Increased delay to 60 seconds
                 bat "curl -f http://localhost:${QA_PORT}/actuator/health || exit 1"
             }
         }
@@ -57,16 +57,16 @@ pipeline {
                         for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${PREPROD_PORT}') do taskkill /F /PID %%i
                     ) || exit 0
                 """
-                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
-                bat 'ping 127.0.0.1 -n 15 > nul'
+                bat "java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
+                bat 'ping 127.0.0.1 -n 60 > nul' // Increased delay to 60 seconds
                 bat "curl -f http://localhost:${PREPROD_PORT}/actuator/health || exit 1"
             }
         }
     }
     post {
         always {
-            echo 'Pipeline execution completed.' // Added to satisfy syntax
-            // bat 'taskkill /F /IM java.exe /T || exit 0' // Commented out to keep app running
+            echo 'Pipeline execution completed.'
+            // bat 'taskkill /F /IM java.exe /T || exit 0' // Commented out to keep app running for debugging
         }
         success {
             echo 'Pipeline completed successfully! Application remains running.'
