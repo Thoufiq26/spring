@@ -1,11 +1,11 @@
 pipeline {
     agent any
     tools {
-        maven 'Maven' // Ensure 'Maven' is configured in Jenkins
-        jdk 'JDK'     // Ensure 'JDK' is configured in Jenkins
+        maven 'Maven' // Configured in Jenkins
+        jdk 'JDK'     // Configured for Java 17
     }
     environment {
-        APP_NAME = "springapp"
+        APP_NAME = "first" // Matches pom.xml artifactId
         QA_PORT = "8082"
         PREPROD_PORT = "8083"
     }
@@ -31,11 +31,11 @@ pipeline {
             }
             steps {
                 echo "Deploying to QA environment on port ${QA_PORT}"
-                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --server.port=${QA_PORT}"
+                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
                 // Wait for the app to start
-                bat 'ping 127.0.0.1 -n 11 > nul'
-                // Verify QA deployment
-                bat "curl -f http://localhost:${QA_PORT} || exit 1"
+                bat 'ping 127.0.0.1 -n 15 > nul'
+                // Verify QA deployment (adjust endpoint if needed)
+                bat "curl -f http://localhost:${QA_PORT}/actuator/health || exit 1"
             }
         }
         stage('Approval for Pre-Prod') {
@@ -49,11 +49,11 @@ pipeline {
         stage('Deploy to Pre-Prod') {
             steps {
                 echo "Deploying to Pre-Prod on port ${PREPROD_PORT}"
-                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --server.port=${PREPROD_PORT}"
+                bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
                 // Wait for the app to start
-                bat 'ping 127.0.0.1 -n 11 > nul'
-                // Verify Pre-prod deployment
-                bat "curl -f http://localhost:${PREPROD_PORT} || exit 1"
+                bat 'ping 127.0.0.1 -n 15 > nul'
+                // Verify Pre-prod deployment (adjust endpoint if needed)
+                bat "curl -f http://localhost:${PREPROD_PORT}/actuator/health || exit 1"
             }
         }
     }
