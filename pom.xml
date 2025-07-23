@@ -8,6 +8,20 @@
 		<version>3.4.7</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
+	<profiles>
+    <profile>
+        <id>qa</id>
+        <properties>
+            <spring.profiles.active>qa</spring.profiles.active>
+        </properties>
+    </profile>
+    <profile>
+        <id>preprod</id>
+        <properties>
+            <spring.profiles.active>preprod</spring.profiles.active>
+        </properties>
+    </profile>
+</profiles>
 	<groupId>com.example</groupId>
 	<artifactId>first</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
