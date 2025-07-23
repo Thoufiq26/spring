@@ -31,6 +31,8 @@ pipeline {
             }
             steps {
                 echo "Deploying to QA environment on port ${QA_PORT}"
+                // Ensure no existing process on QA_PORT
+                bat "netstat -aon | findstr :${QA_PORT} && taskkill /F /PID $(netstat -aon | findstr :${QA_PORT} | awk '{print $5}') || exit 0"
                 bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
                 // Wait for the app to start
                 bat 'ping 127.0.0.1 -n 15 > nul'
@@ -49,6 +51,8 @@ pipeline {
         stage('Deploy to Pre-Prod') {
             steps {
                 echo "Deploying to Pre-Prod on port ${PREPROD_PORT}"
+                // Ensure no existing process on PREPROD_PORT
+                bat "netstat -aon | findstr :${PREPROD_PORT} && taskkill /F /PID $(netstat -aon | findstr :${PREPROD_PORT} | awk '{print $5}') || exit 0"
                 bat "start /B java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
                 // Wait for the app to start
                 bat 'ping 127.0.0.1 -n 15 > nul'
