@@ -57,13 +57,13 @@ pipeline {
                     // Wait for application to start
                     sleep(time: 60, unit: "SECONDS")
                     
-                    // Verify health check
+                    // Verify custom health check
                     bat """
-                        curl -f http://localhost:${QA_PORT}/actuator/health | findstr \"\\\"status\\\":\\\"UP\\\"\" || exit 1
+                        curl -f http://localhost:${QA_PORT}/students/health | findstr \"\\\"status\\\":\\\"UP\\\"\" | findstr \"\\\"stage\\\":\\\"qa\\\"\" || exit 1
                     """
                     
-                    // Confirm QA is running
-                    echo "QA is running on http://localhost:${QA_PORT}"
+                    // Log QA status
+                    echo "QA is running on http://localhost:${QA_PORT}/students/health"
                     
                     // Verify process is running
                     bat """
@@ -103,13 +103,13 @@ pipeline {
                     // Wait for application to start
                     sleep(time: 60, unit: "SECONDS")
                     
-                    // Verify health check
+                    // Verify custom health check
                     bat """
-                        curl -f http://localhost:${PREPROD_PORT}/actuator/health | findstr \"\\\"status\\\":\\\"UP\\\"\" || exit 1
+                        curl -f http://localhost:${PREPROD_PORT}/students/health | findstr \"\\\"status\\\":\\\"UP\\\"\" | findstr \"\\\"stage\\\":\\\"preprod\\\"\" || exit 1
                     """
                     
-                    // Confirm Pre-Prod is running
-                    echo "Pre-Prod is running on http://localhost:${PREPROD_PORT}"
+                    // Log Pre-Prod status
+                    echo "Pre-Prod is running on http://localhost:${PREPROD_PORT}/students/health"
                     
                     // Verify process is running
                     bat """
@@ -122,17 +122,17 @@ pipeline {
     post {
         success {
             echo 'Pipeline completed successfully! Both instances are running:'
-            echo "QA is running on http://localhost:${QA_PORT} (Logs: ${LOG_DIR}\\qa.log)"
-            echo "Pre-Prod is running on http://localhost:${PREPROD_PORT} (Logs: ${LOG_DIR}\\preprod.log)"
-            echo 'To stop these instances later, run:'
-            echo "taskkill /FI \"WINDOWTITLE eq QA_Instance_${BUILD_ID}\" /T /F"
-            echo "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_${BUILD_ID}\" /T /F"
+            echo "QA: http://localhost:${QA_PORT}/students/health (logs: ${LOG_DIR}\\qa.log)"
+            echo "Pre-Prod: http://localhost:${PREPROD_PORT}/students/health (logs: ${LOG_DIR}\\preprod.log)"
+            echo "To stop these instances, run:"
+            echo " taskkill /FI \"WINDOWTITLE eq QA_Instance_${BUILD_ID}\" /T /F"
+            echo " taskkill /FI \"WINDOWTITLE eq PreProd_Instance_${BUILD_ID}\" /T /F"
         }
         failure {
             echo 'Pipeline failed. Check logs for details: ${LOG_DIR}\\qa.log and ${LOG_DIR}\\preprod.log'
             // Clean up any running instances
-            bat "taskkill /FI \"WINDOWTITLE eq QA_Instance_${BUILD_ID}\" /T /F || exit 0"
-            bat "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_${BUILD_ID}\" /T /F || exit 0"
+            bat "taskkill /FI \"WINDOWTITLE eq QA_Instance_*\" /T /F || exit 0"
+            bat "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_*\" /T /F || exit 0"
         }
     }
 }
