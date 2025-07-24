@@ -41,8 +41,12 @@ pipeline {
                         echo "No process found on port ${QA_PORT}"
                     }
                     
-                    // Start QA instance in the background
-                    bat "start \"QA Instance\" cmd /c java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
+                    // Start QA instance in a persistent way
+                    bat """
+                        set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}
+                        echo Starting QA instance: %JAVA_CMD%
+                        start \"QA Instance\" /B cmd /c \"%JAVA_CMD%\" ^& exit
+                    """
                     
                     // Wait for application to start
                     sleep(time: 30, unit: "SECONDS")
@@ -73,8 +77,12 @@ pipeline {
                         echo "No process found on port ${PREPROD_PORT}"
                     }
                     
-                    // Start Pre-Prod instance in the background
-                    bat "start \"Pre-Prod Instance\" cmd /c java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
+                    // Start Pre-Prod instance in a persistent way
+                    bat """
+                        set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}
+                        echo Starting Pre-Prod instance: %JAVA_CMD%
+                        start \"Pre-Prod Instance\" /B cmd /c \"%JAVA_CMD%\" ^& exit
+                    """
                     
                     // Wait for application to start
                     sleep(time: 30, unit: "SECONDS")
@@ -86,13 +94,14 @@ pipeline {
         }
     }
     post {
-        always {
-            echo 'Pipeline execution completed.'
-        }
         success {
-            echo 'Pipeline completed successfully! Both QA and Pre-Prod instances should be running.'
+            echo 'Pipeline completed successfully! Both instances should continue running:'
             echo "QA: http://localhost:${QA_PORT}"
             echo "Pre-Prod: http://localhost:${PREPROD_PORT}"
+            // Add instructions to stop them later if needed
+            echo 'To stop these instances later, run:'
+            echo 'taskkill /FI "WINDOWTITLE eq QA Instance*" /T /F'
+            echo 'taskkill /FI "WINDOWTITLE eq Pre-Prod Instance*" /T /F'
         }
         failure {
             echo 'Pipeline failed. Check logs for details.'
