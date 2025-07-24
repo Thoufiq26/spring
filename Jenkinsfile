@@ -51,15 +51,15 @@ pipeline {
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}
                         echo Starting QA instance: %JAVA_CMD%
-                        start \"QA Instance\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\qa.log 2>&1\"
+                        start \"QA_Instance_${BUILD_ID}\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\qa.log 2>&1\"
                     """
                     
                     // Wait for application to start
-                    sleep(time: 30, unit: "SECONDS")
+                    sleep(time: 60, unit: "SECONDS")
                     
-                    // Verify custom health check
+                    // Verify health check
                     bat """
-                        curl -f http://localhost:${QA_PORT}/actuator/health | findstr \"QA is running\" || exit 1
+                        curl -f http://localhost:${QA_PORT}/actuator/health | findstr \"\\\"status\\\":\\\"UP\\\"\" || exit 1
                     """
                     
                     // Verify process is running
@@ -94,15 +94,15 @@ pipeline {
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}
                         echo Starting Pre-Prod instance: %JAVA_CMD%
-                        start \"Pre-Prod Instance\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\preprod.log 2>&1\"
+                        start \"PreProd_Instance_${BUILD_ID}\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\preprod.log 2>&1\"
                     """
                     
                     // Wait for application to start
-                    sleep(time: 30, unit: "SECONDS")
+                    sleep(time: 60, unit: "SECONDS")
                     
-                    // Verify custom health check
+                    // Verify health check
                     bat """
-                        curl -f http://localhost:${PREPROD_PORT}/actuator/health | findstr \"Pre-Prod is running\" || exit 1
+                        curl -f http://localhost:${PREPROD_PORT}/actuator/health | findstr \"\\\"status\\\":\\\"UP\\\"\" || exit 1
                     """
                     
                     // Verify process is running
@@ -119,14 +119,14 @@ pipeline {
             echo "QA: http://localhost:${QA_PORT} (Logs: ${LOG_DIR}\\qa.log)"
             echo "Pre-Prod: http://localhost:${PREPROD_PORT} (Logs: ${LOG_DIR}\\preprod.log)"
             echo 'To stop these instances later, run:'
-            echo 'taskkill /FI "WINDOWTITLE eq QA Instance*" /T /F'
-            echo 'taskkill /FI "WINDOWTITLE eq Pre-Prod Instance*" /T /F'
+            echo "taskkill /FI \"WINDOWTITLE eq QA_Instance_${BUILD_ID}\" /T /F"
+            echo "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_${BUILD_ID}\" /T /F"
         }
         failure {
-            echo 'Pipeline failed. Check logs for details.'
+            echo 'Pipeline failed. Check logs for details: ${LOG_DIR}\\qa.log and ${LOG_DIR}\\preprod.log'
             // Clean up any running instances
-            bat "taskkill /FI \"WINDOWTITLE eq QA Instance*\" /T /F || exit 0"
-            bat "taskkill /FI \"WINDOWTITLE eq Pre-Prod Instance*\" /T /F || exit 0"
+            bat "taskkill /FI \"WINDOWTITLE eq QA_Instance_${BUILD_ID}\" /T /F || exit 0"
+            bat "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_${BUILD_ID}\" /T /F || exit 0"
         }
     }
 }
