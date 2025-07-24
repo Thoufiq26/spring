@@ -8,11 +8,17 @@ pipeline {
         APP_NAME = "first"
         QA_PORT = "8082"
         PREPROD_PORT = "8083"
+        LOG_DIR = "${WORKSPACE}/logs"
     }
     stages {
         stage('Checkout') {
             steps {
                 git url: 'https://github.com/Thoufiq26/spring.git', branch: 'main'
+            }
+        }
+        stage('Create Log Directory') {
+            steps {
+                bat 'mkdir "%LOG_DIR%" || exit 0'
             }
         }
         stage('Build') {
@@ -41,11 +47,11 @@ pipeline {
                         echo "No process found on port ${QA_PORT}"
                     }
                     
-                    // Start QA instance in a persistent way
+                    // Start QA instance with redirected output
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}
                         echo Starting QA instance: %JAVA_CMD%
-                        start \"QA Instance\" /B cmd /c \"%JAVA_CMD%\" ^& exit
+                        start \"QA Instance\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\qa.log 2>&1\"
                     """
                     
                     // Wait for application to start
@@ -53,6 +59,11 @@ pipeline {
                     
                     // Verify health check
                     bat "curl -f http://localhost:${QA_PORT}/actuator/health || exit 1"
+                    
+                    // Verify process is running
+                    bat """
+                        netstat -aon | findstr :${QA_PORT} || exit 1
+                    """
                 }
             }
         }
@@ -77,11 +88,11 @@ pipeline {
                         echo "No process found on port ${PREPROD_PORT}"
                     }
                     
-                    // Start Pre-Prod instance in a persistent way
+                    // Start Pre-Prod instance with redirected output
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}
                         echo Starting Pre-Prod instance: %JAVA_CMD%
-                        start \"Pre-Prod Instance\" /B cmd /c \"%JAVA_CMD%\" ^& exit
+                        start \"QA Instance\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\preprod.log 2>&1\"
                     """
                     
                     // Wait for application to start
@@ -89,25 +100,27 @@ pipeline {
                     
                     // Verify health check
                     bat "curl -f http://localhost:${PREPROD_PORT}/actuator/health || exit 1"
+                    
+                    // Verify process is running
+                    bat """
+                        netstat -aon | findstr :${PREPROD_PORT} || exit 1
+                    """
                 }
             }
         }
     }
     post {
         success {
-            echo 'Pipeline completed successfully! Both instances should continue running:'
-            echo "QA: http://localhost:${QA_PORT}"
-            echo "Pre-Prod: http://localhost:${PREPROD_PORT}"
-            // Add instructions to stop them later if needed
+            echo 'Pipeline completed successfully! Both instances are running:'
+            echo "QA: http://localhost:${QA_PORT} (Logs: ${LOG_DIR}\\qa.log)"
+            echo "Pre-Prod: http://localhost:${PREPROD_PORT} (Logs: ${LOG_DIR}\\preprod.log)"
             echo 'To stop these instances later, run:'
             echo 'taskkill /FI "WINDOWTITLE eq QA Instance*" /T /F'
-            echo 'taskkill /FI "WINDOWTITLE eq Pre-Prod Instance*" /T /F'
         }
         failure {
             echo 'Pipeline failed. Check logs for details.'
             // Clean up any running instances
             bat "taskkill /FI \"WINDOWTITLE eq QA Instance*\" /T /F || exit 0"
-            bat "taskkill /FI \"WINDOWTITLE eq Pre-Prod Instance*\" /T /F || exit 0"
         }
     }
 }
