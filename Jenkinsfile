@@ -31,14 +31,25 @@ pipeline {
             }
             steps {
                 echo "Deploying to QA environment on port ${QA_PORT}"
-                bat """
-                    netstat -aon | findstr :${QA_PORT} > nul && (
-                        for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${QA_PORT}') do taskkill /F /PID %%i
-                    ) || exit 0
-                """
-                bat "java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
-                bat 'ping 127.0.0.1 -n 60 > nul' // Increased delay to 60 seconds
-                bat "curl -f http://localhost:${QA_PORT}/actuator/health || exit 1"
+                script {
+                    // Kill any existing process on QA port
+                    try {
+                        bat """
+                            for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${QA_PORT}') do taskkill /F /PID %%i
+                        """
+                    } catch (Exception e) {
+                        echo "No process found on port ${QA_PORT}"
+                    }
+                    
+                    // Start QA instance in the background
+                    bat "start \"QA Instance\" cmd /c java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}"
+                    
+                    // Wait for application to start
+                    sleep(time: 30, unit: "SECONDS")
+                    
+                    // Verify health check
+                    bat "curl -f http://localhost:${QA_PORT}/actuator/health || exit 1"
+                }
             }
         }
         stage('Approval for Pre-Prod') {
@@ -52,27 +63,42 @@ pipeline {
         stage('Deploy to Pre-Prod') {
             steps {
                 echo "Deploying to Pre-Prod on port ${PREPROD_PORT}"
-                bat """
-                    netstat -aon | findstr :${PREPROD_PORT} > nul && (
-                        for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${PREPROD_PORT}') do taskkill /F /PID %%i
-                    ) || exit 0
-                """
-                bat "java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
-                bat 'ping 127.0.0.1 -n 60 > nul' // Increased delay to 60 seconds
-                bat "curl -f http://localhost:${PREPROD_PORT}/actuator/health || exit 1"
+                script {
+                    // Kill any existing process on Pre-Prod port
+                    try {
+                        bat """
+                            for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${PREPROD_PORT}') do taskkill /F /PID %%i
+                        """
+                    } catch (Exception e) {
+                        echo "No process found on port ${PREPROD_PORT}"
+                    }
+                    
+                    // Start Pre-Prod instance in the background
+                    bat "start \"Pre-Prod Instance\" cmd /c java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}"
+                    
+                    // Wait for application to start
+                    sleep(time: 30, unit: "SECONDS")
+                    
+                    // Verify health check
+                    bat "curl -f http://localhost:${PREPROD_PORT}/actuator/health || exit 1"
+                }
             }
         }
     }
     post {
         always {
             echo 'Pipeline execution completed.'
-            // bat 'taskkill /F /IM java.exe /T || exit 0' // Commented out to keep app running for debugging
         }
         success {
-            echo 'Pipeline completed successfully! Application remains running.'
+            echo 'Pipeline completed successfully! Both QA and Pre-Prod instances should be running.'
+            echo "QA: http://localhost:${QA_PORT}"
+            echo "Pre-Prod: http://localhost:${PREPROD_PORT}"
         }
         failure {
             echo 'Pipeline failed. Check logs for details.'
+            // Clean up any running instances
+            bat "taskkill /FI \"WINDOWTITLE eq QA Instance*\" /T /F || exit 0"
+            bat "taskkill /FI \"WINDOWTITLE eq Pre-Prod Instance*\" /T /F || exit 0"
         }
     }
 }
