@@ -3,10 +3,12 @@ package com.example.first.controller;
 import com.example.first.model.Student;
 import com.example.first.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/students")
@@ -14,6 +16,15 @@ public class StudentController {
 
     @Autowired
     private StudentRepository studentRepo;
+
+    @Value("${spring.data.mongodb.stage:default}")
+    private String stage;
+
+    // Custom health endpoint
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of("status", "UP", "stage", stage);
+    }
 
     // Create
     @PostMapping
