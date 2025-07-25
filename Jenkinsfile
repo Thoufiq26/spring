@@ -28,7 +28,22 @@ pipeline {
         }
         stage('Unit Tests') {
             steps {
-                bat 'mvnw.cmd test'
+                bat 'mvnw.cmd surefire:test'
+            }
+            post {
+                always {
+                    echo 'Unit Tests completed'
+                }
+            }
+        }
+        stage('Integration Tests') {
+            steps {
+                bat 'mvnw.cmd failsafe:integration-test failsafe:verify'
+            }
+            post {
+                always {
+                    echo 'Integration Tests completed'
+                }
             }
         }
         stage('Deploy to QA') {
@@ -38,7 +53,6 @@ pipeline {
             steps {
                 echo "Deploying to QA environment on port ${QA_PORT}"
                 script {
-                    // Kill any existing process on QA port
                     try {
                         bat """
                             for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${QA_PORT}') do taskkill /F /PID %%i
@@ -46,26 +60,16 @@ pipeline {
                     } catch (Exception e) {
                         echo "No process found on port ${QA_PORT}"
                     }
-                    
-                    // Start QA instance with redirected output
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=qa --server.port=${QA_PORT}
                         echo Starting QA instance: %JAVA_CMD%
                         start \"QA_Instance_${BUILD_ID}\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\qa.log 2>&1\"
                     """
-                    
-                    // Wait for application to start
                     sleep(time: 60, unit: "SECONDS")
-                    
-                    // Verify custom health check
                     bat """
                         curl -f http://localhost:${QA_PORT}/students/health | findstr \"\\\"status\\\":\\\"UP\\\"\" | findstr \"\\\"stage\\\":\\\"qa\\\"\" || exit 1
                     """
-                    
-                    // Log QA status
                     echo "QA is running on http://localhost:${QA_PORT}/students/health"
-                    
-                    // Verify process is running
                     bat """
                         netstat -aon | findstr :${QA_PORT} || exit 1
                     """
@@ -84,7 +88,6 @@ pipeline {
             steps {
                 echo "Deploying to Pre-Prod on port ${PREPROD_PORT}"
                 script {
-                    // Kill any existing process on Pre-Prod port
                     try {
                         bat """
                             for /f \"tokens=5\" %%i in ('netstat -aon ^| findstr :${PREPROD_PORT}') do taskkill /F /PID %%i
@@ -92,26 +95,16 @@ pipeline {
                     } catch (Exception e) {
                         echo "No process found on port ${PREPROD_PORT}"
                     }
-                    
-                    // Start Pre-Prod instance with redirected output
                     bat """
                         set JAVA_CMD=java -jar target/${APP_NAME}-0.0.1-SNAPSHOT.jar --spring.profiles.active=preprod --server.port=${PREPROD_PORT}
                         echo Starting Pre-Prod instance: %JAVA_CMD%
                         start \"PreProd_Instance_${BUILD_ID}\" /B cmd /c \"%JAVA_CMD% > ${LOG_DIR}\\preprod.log 2>&1\"
                     """
-                    
-                    // Wait for application to start
                     sleep(time: 60, unit: "SECONDS")
-                    
-                    // Verify custom health check
                     bat """
                         curl -f http://localhost:${PREPROD_PORT}/students/health | findstr \"\\\"status\\\":\\\"UP\\\"\" | findstr \"\\\"stage\\\":\\\"preprod\\\"\" || exit 1
                     """
-                    
-                    // Log Pre-Prod status
                     echo "Pre-Prod is running on http://localhost:${PREPROD_PORT}/students/health"
-                    
-                    // Verify process is running
                     bat """
                         netstat -aon | findstr :${PREPROD_PORT} || exit 1
                     """
@@ -130,7 +123,6 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed. Check logs for details: ${LOG_DIR}\\qa.log and ${LOG_DIR}\\preprod.log'
-            // Clean up any running instances
             bat "taskkill /FI \"WINDOWTITLE eq QA_Instance_*\" /T /F || exit 0"
             bat "taskkill /FI \"WINDOWTITLE eq PreProd_Instance_*\" /T /F || exit 0"
         }
