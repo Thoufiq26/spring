@@ -9,7 +9,6 @@ pipeline {
         QA_PORT = "8082"
         PREPROD_PORT = "8083"
         LOG_DIR = "${WORKSPACE}/logs"
-        TEST_REPO_DIR = "${WORKSPACE}/spring-integration-tests"
     }
     stages {
         stage('Checkout') {
@@ -34,6 +33,16 @@ pipeline {
             post {
                 always {
                     echo 'Unit Tests completed'
+                }
+            }
+        }
+        stage('Integration Tests') {
+            steps {
+                bat 'mvnw.cmd failsafe:integration-test failsafe:verify'
+            }
+            post {
+                always {
+                    echo 'Integration Tests completed'
                 }
             }
         }
@@ -64,31 +73,6 @@ pipeline {
                     bat """
                         netstat -aon | findstr :${QA_PORT} || exit 1
                     """
-                }
-            }
-        }
-        stage('Integration Tests Post-QA') {
-            when {
-                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
-            steps {
-                echo "Running integration tests against QA environment"
-                script {
-                    // Clone test repository
-                    bat """
-                        if exist "%TEST_REPO_DIR%" rmdir /S /Q "%TEST_REPO_DIR%"
-                        git clone https://github.com/Thoufiq26/spring-integration-tests.git "%TEST_REPO_DIR%"
-                    """
-                    // Run integration tests
-                    bat """
-                        cd "%TEST_REPO_DIR%"
-                        mvnw.cmd clean failsafe:integration-test failsafe:verify
-                    """
-                }
-            }
-            post {
-                always {
-                    echo 'Integration Tests Post-QA completed'
                 }
             }
         }
